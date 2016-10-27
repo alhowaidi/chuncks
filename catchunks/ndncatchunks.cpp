@@ -27,121 +27,81 @@
  * @author Weiwei Liu
  */
 
-#include "version.hpp"
-#include "options.hpp"
-#include "consumer.hpp"
-#include "discover-version-fixed.hpp"
-#include "discover-version-iterative.hpp"
-#include "pipeline-interests-fixed-window.hpp"
-
-#include <ndn-cxx/security/validator-null.hpp>
+#include "ndncatchunks.hpp"
 
 namespace ndn {
 namespace chunks {
 
-static int
-main(int argc, char** argv)
+ int
+ ndnChunks::startChunk(std::string ndnName)
 {
-  std::string programName(argv[0]);
-  Options options;
-  std::string discoverType("fixed");
-  std::string pipelineType("fixed");
-  size_t maxPipelineSize(1);
-  int maxRetriesAfterVersionFound(1);
-  std::string uri;
 
-  namespace po = boost::program_options;
-  po::options_description visibleDesc("Options");
+	Options options;
+	std::string discoverType("fixed");
+	std::string pipelineType("fixed");
+	size_t maxPipelineSize(1);
+	int maxRetriesAfterVersionFound(1);
+	std::string uri = ndnName;
 
 
-  po::positional_options_description p;
-  p.add("ndn-name", -1);
+	Name prefix(uri);
 
-  po::options_description optDesc("Allowed options");
-  optDesc.add(visibleDesc).add(hiddenDesc);
+	if (maxPipelineSize < 1 || maxPipelineSize > 1024) {
+		std::cerr << "ERROR: pipeline size must be between 1 and 1024" << std::endl;
+		return 2;
+	}
 
-  po::variables_map vm;
-  try {
-    po::store(po::command_line_parser(argc, argv).options(optDesc).positional(p).run(), vm);
-    po::notify(vm);
-  }
-  catch (const po::error& e) {
-    std::cerr << "ERROR: " << e.what() << std::endl;
-    return 2;
-  }
-  catch (const boost::bad_any_cast& e) {
-    std::cerr << "ERROR: " << e.what() << std::endl;
-    return 2;
-  }
+	//options.interestLifetime = time::milliseconds(vm["lifetime"].as<uint64_t>());
+
+	try {
+		Face face;
+
+		unique_ptr<DiscoverVersion> discover;
+		//   if (discoverType == "fixed") {
+		//     discover = make_unique<DiscoverVersionFixed>(prefix, face, options);
+		//   }
+		//   else if (discoverType == "iterative") {
+		DiscoverVersionIterative::Options optionsIterative(options);
+		optionsIterative.maxRetriesAfterVersionFound = maxRetriesAfterVersionFound;
+		discover = make_unique<DiscoverVersionIterative>(prefix, face, optionsIterative);
+		//  }
+		//   else {
+		//     std::cerr << "ERROR: discover version type not valid" << std::endl;
+		//    return 2;
+		// }
+
+		unique_ptr<PipelineInterests> pipeline;
+		if (pipelineType == "fixed") {
+			PipelineInterestsFixedWindow::Options optionsPipeline(options);
+			optionsPipeline.maxPipelineSize = maxPipelineSize;
+			pipeline = make_unique<PipelineInterestsFixedWindow>(face, optionsPipeline);
+		}
+		else {
+			std::cerr << "ERROR: Interest pipeline type not valid" << std::endl;
+			return 2;
+		}
+
+		ValidatorNull validator;
+		Consumer consumer(validator, options.isVerbose);
+
+		BOOST_ASSERT(discover != nullptr);
+		BOOST_ASSERT(pipeline != nullptr);
 
 
+		consumer.run(std::move(discover), std::move(pipeline));
+		face.processEvents();
+	}
+	catch (const Consumer::ApplicationNackError& e) {
+		std::cerr << "ERROR: " << e.what() << std::endl;
+		return 3;
+	}
+	catch (const std::exception& e) {
+		std::cerr << "ERROR: " << e.what() << std::endl;
+		return 1;
+	}
 
-  if (maxPipelineSize < 1 || maxPipelineSize > 1024) {
-    std::cerr << "ERROR: pipeline size must be between 1 and 1024" << std::endl;
-    return 2;
-  }
-
-//  if (options.maxRetriesOnTimeoutOrNack < -1 || options.maxRetriesOnTimeoutOrNack > 1024) {
-//    std::cerr << "ERROR: retries value must be between -1 and 1024" << std::endl;
-//    return 2;
-//  }
-
-
-  options.interestLifetime = time::milliseconds(vm["lifetime"].as<uint64_t>());
-
-  try {
-    Face face;
-
-    unique_ptr<DiscoverVersion> discover;
- //   if (discoverType == "fixed") {
- //     discover = make_unique<DiscoverVersionFixed>(prefix, face, options);
- //   }
- //   else if (discoverType == "iterative") {
-      DiscoverVersionIterative::Options optionsIterative(options);
-      optionsIterative.maxRetriesAfterVersionFound = maxRetriesAfterVersionFound;
-      discover = make_unique<DiscoverVersionIterative>(prefix, face, optionsIterative);
-  //  }
- //   else {
- //     std::cerr << "ERROR: discover version type not valid" << std::endl;
-  //    return 2;
-   // }
-
-    unique_ptr<PipelineInterests> pipeline;
-    if (pipelineType == "fixed") {
-      PipelineInterestsFixedWindow::Options optionsPipeline(options);
-      optionsPipeline.maxPipelineSize = maxPipelineSize;
-      pipeline = make_unique<PipelineInterestsFixedWindow>(face, optionsPipeline);
-    }
-    else {
-      std::cerr << "ERROR: Interest pipeline type not valid" << std::endl;
-      return 2;
-    }
-
-    ValidatorNull validator;
-    Consumer consumer(validator, options.isVerbose);
-
-    BOOST_ASSERT(discover != nullptr);
-    BOOST_ASSERT(pipeline != nullptr);
-    consumer.run(std::move(discover), std::move(pipeline));
-    face.processEvents();
-  }
-  catch (const Consumer::ApplicationNackError& e) {
-    std::cerr << "ERROR: " << e.what() << std::endl;
-    return 3;
-  }
-  catch (const std::exception& e) {
-    std::cerr << "ERROR: " << e.what() << std::endl;
-    return 1;
-  }
-
-  return 0;
+	return 0;
 }
 
 } // namespace chunks
 } // namespace ndn
-
-int
-main(int argc, char** argv)
-{
-  return ndn::chunks::main(argc, argv);
-}
