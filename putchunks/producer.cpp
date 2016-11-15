@@ -1,6 +1,6 @@
 #include "producer.hpp"
 #include "fstream"
-
+#include <ostream>
 
 
 namespace ndn {
@@ -73,13 +73,15 @@ std::cerr << "Interest: " << interest << std::endl;
   
   if (m_store.size() == 0) { // first time call
      //std::ifstream& is;
-     std::cerr << "File name: " << ss << std::endl;
+     std::cerr << "File name: " << "/data/" << ss << std::endl;
      m_prefix = name;
      m_versionedPrefix = Name(m_prefix);//.appendVersion();
      populateStore(ss);
 
   }
   
+  if(m_store.size() !=0)
+  {
   shared_ptr<Data> data;
 
   bool lastSegment = false;
@@ -128,22 +130,35 @@ std::cerr << "Interest: " << interest << std::endl;
     }
     m_face.put(*data);
   }
+  }// if (m_store.size()!=0)
 //else
 //std::cerr << "nullptr " << std::endl;
 }
 
 void
-Producer::populateStore(std::string fileName)
+Producer::populateStore(std::string fileNameO)
 {
+  numInterest  = numInterest + 1; 
+  std::cerr << " num interest: " << numInterest << std::endl;
   BOOST_ASSERT(m_store.size() == 0);
 
-  if (m_isVerbose)
+std::string fileName = "/data/" + fileNameO;  
+if (m_isVerbose)
     std::cerr << "Loading input ..." << std::endl;
 
   std::fstream is(fileName);
-
-  //std::cerr << "buffer: "<<buffer.data() <<std::endl;
+  
+  if(is)
+  {
+   size_t fileSize = 0;
+   is.seekg(0,std::ios::end);
+   fileSize = is.tellg();
+   is.seekg(0,std::ios::beg);
+   std::cerr << "file Size: " << fileSize << std::endl;
+   
+  }
   std::vector<uint8_t> buffer(m_maxSegmentSize);
+  
   while (is.good()) {
     is.read(reinterpret_cast<char*>(buffer.data()), buffer.size());
     const auto nCharsRead = is.gcount();
@@ -156,30 +171,92 @@ Producer::populateStore(std::string fileName)
       m_store.push_back(data);
     }
   }
-//std::cerr << "done data " << std::endl;
-  if (m_store.empty()) {
-  //  std::cerr << "store is empty" << std::endl;
-    auto data = make_shared<Data>(Name(m_versionedPrefix).appendSegment(0));
-    data->setFreshnessPeriod(m_freshnessPeriod);
-    m_store.push_back(data);
+  
+  
+if (m_store.empty()) 
+  {
+  //  auto data = make_shared<Data>(Name(m_versionedPrefix).appendSegment(0));
+  //  data->setFreshnessPeriod(m_freshnessPeriod);
+  //  m_store.push_back(data);
+
+	  fileName = "/data/" + fileNameO + "P";
+	  std::fstream is(fileName);
+
+	  if(is)
+	  {
+		  size_t fileSize = 0;
+		  is.seekg(0,std::ios::end);
+		  fileSize = is.tellg();
+		  is.seekg(0,std::ios::beg);
+		  std::cerr << "file Size P: " << fileSize << std::endl;
+
+	  }
+	  std::vector<uint8_t> buffer(m_maxSegmentSize);
+	  while (is.good()) {
+		  is.read(reinterpret_cast<char*>(buffer.data()), buffer.size());
+		  const auto nCharsRead = is.gcount();
+		  if (nCharsRead > 0) {
+			  auto data = make_shared<Data>(Name(m_versionedPrefix).appendSegment(m_store.size()));
+
+			  data->setFreshnessPeriod(m_freshnessPeriod);
+			  data->setContent(&buffer[0], nCharsRead);
+
+			  m_store.push_back(data);
+		  }
+	  }
+
+
+	  if(m_store.empty())
+	  {
+		  fileName = "/data/" + fileNameO + "C";
+		  std::fstream is(fileName);
+		  
+		  if(is)
+		  {
+			  size_t fileSize = 0;
+			  is.seekg(0,std::ios::end);
+			  fileSize = is.tellg();
+			  is.seekg(0,std::ios::beg);
+			  std::cerr << "file Sizei C: " << fileSize << std::endl;
+
+		  }
+		  std::vector<uint8_t> buffer(m_maxSegmentSize);
+		  while (is.good()) {
+			  is.read(reinterpret_cast<char*>(buffer.data()), buffer.size());
+			  const auto nCharsRead = is.gcount();
+			  if (nCharsRead > 0) {
+				  auto data = make_shared<Data>(Name(m_versionedPrefix).appendSegment(m_store.size()));
+
+				  data->setFreshnessPeriod(m_freshnessPeriod);
+				  data->setContent(&buffer[0], nCharsRead);
+
+				  m_store.push_back(data);
+			  }
+		  }
+
+	  }
+
+	  if(m_store.empty())
+	  { return; }
+
   }
 
-  auto finalBlockId = name::Component::fromSegment(m_store.size() - 1);
-  for (const auto& data : m_store) {
-    data->setFinalBlockId(finalBlockId);
-    m_keyChain.sign(*data, m_signingInfo);
-  }
-
-  if (m_isVerbose)
-    std::cerr << "Created " << m_store.size() << " chunks for prefix " << m_prefix << std::endl;
+auto finalBlockId = name::Component::fromSegment(m_store.size() - 1);
+for (const auto& data : m_store) {
+	data->setFinalBlockId(finalBlockId);
+	m_keyChain.sign(*data, m_signingInfo);
 }
 
-void
+if (m_isVerbose)
+	std::cerr << "Created " << m_store.size() << " chunks for prefix " << m_prefix << std::endl;
+	}
+
+	void
 Producer::onRegisterFailed(const Name& prefix, const std::string& reason)
 {
-  std::cerr << "ERROR: Failed to register prefix '"
-            << prefix << "' (" << reason << ")" << std::endl;
-  m_face.shutdown();
+	std::cerr << "ERROR: Failed to register prefix '"
+		<< prefix << "' (" << reason << ")" << std::endl;
+	m_face.shutdown();
 }
 
 } // namespace chunks

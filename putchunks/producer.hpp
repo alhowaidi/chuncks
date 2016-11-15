@@ -92,6 +92,8 @@ private:
   time::milliseconds m_freshnessPeriod;
   size_t m_maxSegmentSize;
   bool m_isVerbose;
+  int numInterest = 0;
+  int fileSize = 0;
 };
 
 } // namespace chunks
