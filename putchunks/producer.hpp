@@ -94,6 +94,7 @@ private:
   bool m_isVerbose;
   int numInterest = 0;
   int fileSize = 0;
+  size_t totalNumByte  = 0;
 };
 
 } // namespace chunks

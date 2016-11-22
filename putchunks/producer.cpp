@@ -63,8 +63,12 @@ Producer::onInterest(const Interest& interest)
    std::cerr << "interest name: " << interest.getName() << std::endl;
   }
   const Name& name = interest.getName();
-std::cerr << "Interest: " << interest << std::endl;
-  std::cerr << "interest name: " << name << std::endl;
+//std::cerr << "Interest: " << interest << std::endl;
+//  std::cerr << "interest name: " << name << std::endl;
+
+  numInterest  = numInterest + 1;
+//  std::cerr << " num interest: " << numInterest << std::endl;
+
   const auto s=name[1];
 
   const std::string ss = interest.getName()[1].toUri() +"/" +interest.getName()[2].toUri();
@@ -92,10 +96,10 @@ std::cerr << "Interest: " << interest << std::endl;
     const auto segmentNo = static_cast<size_t>(interest.getName()[-1].toSegment());
     // specific segment retrieval
     
-    std::cerr << "in if"  << std::endl;
+  //  std::cerr << "in if"  << std::endl;
     if (segmentNo < m_store.size()) {
       data = m_store[segmentNo];
-      std::cerr << "sno: " << segmentNo << std::endl;
+    //  std::cerr << "sno: " << segmentNo << std::endl;
   //    std::cerr << "*data: " << *data << std::endl;
 
       if(segmentNo == m_store.size() -1 )
@@ -106,7 +110,7 @@ std::cerr << "Interest: " << interest << std::endl;
   else if (interest.matchesData(*m_store[0])) {
     // Interest has version and is looking for the first segment or has no version
     data = m_store[0];
-    std::cerr << "in else if"  << std::endl;
+   // std::cerr << "in else if"  << std::endl;
     if(m_store.size() == 1)
     	lastSegment = true;
    // std::cerr << data << std::endl;
@@ -124,8 +128,9 @@ std::cerr << "Interest: " << interest << std::endl;
 
     if(lastSegment == true)
     {
-    	std::cerr << "clear store .. " << std::endl;
+    //	std::cerr << "clear store .. " << std::endl;
     	m_store.clear();
+std::cerr << " num interest: " << numInterest << std::endl;
 
     }
     m_face.put(*data);
@@ -138,8 +143,8 @@ std::cerr << "Interest: " << interest << std::endl;
 void
 Producer::populateStore(std::string fileNameO)
 {
-  numInterest  = numInterest + 1; 
-  std::cerr << " num interest: " << numInterest << std::endl;
+//  numInterest  = numInterest + 1; 
+ // std::cerr << " num interest: " << numInterest << std::endl;
   BOOST_ASSERT(m_store.size() == 0);
 
 std::string fileName = "/data/" + fileNameO;  
@@ -154,7 +159,9 @@ if (m_isVerbose)
    is.seekg(0,std::ios::end);
    fileSize = is.tellg();
    is.seekg(0,std::ios::beg);
-   std::cerr << "file Size: " << fileSize << std::endl;
+   totalNumByte = totalNumByte + fileSize;
+   std::cerr << "file size: " << fileSize << std::endl;
+   std::cerr << "Total Bytes: " << totalNumByte  << std::endl;
    
   }
   std::vector<uint8_t> buffer(m_maxSegmentSize);
@@ -188,7 +195,10 @@ if (m_store.empty())
 		  is.seekg(0,std::ios::end);
 		  fileSize = is.tellg();
 		  is.seekg(0,std::ios::beg);
-		  std::cerr << "file Size P: " << fileSize << std::endl;
+		  totalNumByte = totalNumByte + fileSize;
+
+		  std::cerr << "file size P: " << fileSize << std::endl;
+		  std::cerr << "Total Byte: " << totalNumByte << std::endl;
 
 	  }
 	  std::vector<uint8_t> buffer(m_maxSegmentSize);
@@ -210,14 +220,18 @@ if (m_store.empty())
 	  {
 		  fileName = "/data/" + fileNameO + "C";
 		  std::fstream is(fileName);
-		  
+
 		  if(is)
 		  {
 			  size_t fileSize = 0;
 			  is.seekg(0,std::ios::end);
 			  fileSize = is.tellg();
 			  is.seekg(0,std::ios::beg);
-			  std::cerr << "file Sizei C: " << fileSize << std::endl;
+			  totalNumByte = totalNumByte + fileSize;
+
+			  std::cerr << "file size C: " << fileSize << std::endl;
+			  std::cerr << "Total Byte: " << totalNumByte << std::endl;
+
 
 		  }
 		  std::vector<uint8_t> buffer(m_maxSegmentSize);
